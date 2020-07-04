@@ -1,39 +1,82 @@
-# Declare the alpine linux base image
-FROM alpine:3.7
+# Declare the anaconda linux base image
+# FROM continuumio/anaconda3
+# FROM nvidia/cuda
+FROM ubuntu:20.04
 
-MAINTAINER Andy Manson
+# run any installs required
+RUN export DEBIAN_FRONTEND=noninteractive
+RUN apt-get update
+RUN apt-get -y install apt-utils
+RUN apt-get -y install rlwrap
+RUN apt-get -y install iputils-ping
+RUN apt-get -y install git
+RUN apt-get -y install wget
+RUN apt-get -y install curl
 
-# Set Environment variable(s) for q and add to Unix PATH
-ENV QHOME /q
-ENV PATH ${PATH}:${QHOME}/l32/
+# # Set Environment variable(s) for q and add to Unix PATH
+# ENV QHOME /l64
+# ENV PATH ${PATH}:${QHOME}/l64/
 
-# Refresh / Update the base image using alpine's package manager "apk", and binutils to allow use of e.g. tar/ar while building
-RUN apk update \
-&& apk add --update binutils
-
-# Download & unpack "libc6-i386 for amd64" debian package (this is required for "q" to run on a 64-bit OS).
-# For information view: https://packages.debian.org/jessie/amd64/libc6-i386/
-RUN LIBC32_DEB=libc6-i386_2.19-18+deb8u10_amd64.deb \
-  && wget "http://ftp.us.debian.org/debian/pool/main/g/glibc/libc6-i386_2.19-18+deb8u10_amd64.deb" \
-  && echo "aeee7bebb8e957e299c93c884aba4fa9  $LIBC32_DEB" | md5sum -c - \
-  && ar p $LIBC32_DEB data.tar.xz | unxz | tar -x \
-  && rm -rf $LIBC32_DEB /usr/share/doc/libc6-i386 /usr/lib32/gconv /usr/share/lintian \
-	&& apk del binutils \
-	&& rm -rf /var/lib/apk/lists/*
-
-# Ensure we have your our zipped version of q for linux in the same folder as this Dockerfile, and copy it
-COPY q.zip .
-COPY entrypoint.sh /entrypoint.sh
-
-# Unzip q for linux to the root ('/'), change file / directory permissions, finally clean up by removing unused folders / utilities
-RUN unzip /q.zip \
-&& chown -R root /q; chmod 755 /q/l32/q \
-&& rm /q.zip \
-# NB Mac OSX users - the unzip process may have created a __MACOSX directory - it can be safely deleted by uncommenting the line below:
-&& rm -rf /__MACOSX \
-&& apk del binutils
-
-
-WORKDIR /
 EXPOSE  5001
-ENTRYPOINT ["/entrypoint.sh"]
+EXPOSE  6001
+EXPOSE  6002
+EXPOSE  80
+EXPOSE	3000
+EXPOSE	3001
+EXPOSE	5000
+
+# ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+
+# ENV PATH /opt/conda/bin:$PATH
+# # ENV PATH /home/foorx/conda/bin:$PATH
+
+# RUN apt-get update --fix-missing && apt-get install -y wget bzip2 ca-certificates \
+#     libglib2.0-0 libxext6 libsm6 libxrender1 \
+#     git mercurial subversion
+
+# RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda2-4.5.11-Linux-x86_64.sh -O ~/miniconda.sh && \
+#     /bin/bash ~/miniconda.sh -b -p /opt/conda && \
+#     rm ~/miniconda.sh && \
+#     ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
+#     echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
+#     echo "conda activate base" >> ~/.bashrc
+
+# RUN apt-get install -y curl grep sed dpkg && \
+#     TINI_VERSION=`curl https://github.com/krallin/tini/releases/latest | grep -o "/v.*\"" | sed 's:^..\(.*\).$:\1:'` && \
+#     curl -L "https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini_${TINI_VERSION}.deb" > tini.deb && \
+#     dpkg -i tini.deb && \
+#     rm tini.deb && \
+#     apt-get clean
+
+
+# COPY ./miniconda.sh /home/foorx/miniconda.sh
+RUN mkdir /home/foorx
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+
+# create new user foorx
+# RUN useradd -ms /bin/bash foorx
+RUN groupadd -r mygrp && useradd -r -g mygrp foorx
+
+# set to user foorx
+USER foorx
+
+# set working directory of user foorx
+WORKDIR /home/foorx
+
+RUN cp /miniconda.sh ~/miniconda.sh
+
+RUN bash /home/foorx/miniconda.sh -b -p /home/foorx/miniconda
+
+# RUN cd /home/foorx/Sites && git clone https://github.com/foorenxiang/OHR400Dashboard
+# RUN cd /home/foorx/Sites/OHR400Dashboard && git pull
+
+#64bit q QHOME
+ENV PATH=$PATH:/home/foorx/l64/l64
+ENV QHOME=/home/foorx/l64
+# ENV q="rlwrap /home/foorx/l64/l64/q"
+
+RUN conda install -c kx kdb 
+
+# COPY ./dockermountUbuntu /home/foorx/
+
+# ENTRYPOINT ["/entrypoint.sh"]
